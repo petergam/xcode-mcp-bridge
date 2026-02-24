@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  if [[ "$SOURCE" != /* ]]; then
+    SOURCE="$DIR/$SOURCE"
+  fi
+done
+DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+TSX_LOADER="$DIR/node_modules/tsx/dist/loader.mjs"
+if [[ ! -f "$TSX_LOADER" ]]; then
+  echo "xcode: missing runtime loader at $TSX_LOADER" >&2
+  echo "Install dependencies in $DIR (npm install)." >&2
+  exit 1
+fi
+
+exec node --import "$TSX_LOADER" "$DIR/xcode.ts" "$@"

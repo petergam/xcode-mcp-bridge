@@ -152,6 +152,25 @@ program
     });
   });
 
+program
+  .command('build-log')
+  .description('Show current or most recent build log')
+  .option('--glob <glob>', 'Filter log entries by file path glob')
+  .option('--pattern <regex>', 'Filter log entries by message/console regex')
+  .option('--severity <severity>', 'remark | warning | error', 'error')
+  .action(async (options: { glob?: string; pattern?: string; severity: string }) => {
+    await withClient(async (ctx) => {
+      const tabIdentifier = await resolveTabIdentifier(ctx, true);
+      const result = await ctx.call('GetBuildLog', {
+        tabIdentifier,
+        glob: options.glob,
+        pattern: options.pattern,
+        severity: options.severity,
+      });
+      printResult(result, ctx.output);
+    });
+  });
+
 const tests = program.command('test').description('Run tests');
 
 tests

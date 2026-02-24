@@ -44,6 +44,9 @@ function formatReadableOutput(value: unknown): string {
   if (isTestRunPayload(record)) {
     return formatTestRunOutput(record);
   }
+  if (isBuildLogPayload(record)) {
+    return formatBuildLogOutput(record);
+  }
 
   if (record.type === 'error' && typeof record.data === 'string') {
     return `Error: ${record.data}`;
@@ -98,6 +101,79 @@ function isTestRunPayload(record: Record<string, unknown>): boolean {
       record.counts &&
       typeof record.counts === 'object',
   );
+}
+
+function isBuildLogPayload(record: Record<string, unknown>): boolean {
+  return Array.isArray(record.buildLogEntries) && typeof record.buildResult === 'string';
+}
+
+function formatBuildLogOutput(record: Record<string, unknown>): string {
+  const lines: string[] = [];
+  const buildResult = typeof record.buildResult === 'string' ? record.buildResult : undefined;
+  const buildIsRunning = typeof record.buildIsRunning === 'boolean' ? record.buildIsRunning : undefined;
+  const fullLogPath = typeof record.fullLogPath === 'string' ? record.fullLogPath : undefined;
+  const totalFound =
+    typeof record.totalFound === 'number' && Number.isFinite(record.totalFound)
+      ? record.totalFound
+      : undefined;
+  const truncated = record.truncated === true;
+
+  if (buildResult) {
+    lines.push(buildResult);
+  }
+  if (buildIsRunning !== undefined) {
+    lines.push(`build running: ${buildIsRunning ? 'yes' : 'no'}`);
+  }
+  if (fullLogPath) {
+    lines.push(`full log path: ${fullLogPath}`);
+  }
+  if (totalFound !== undefined) {
+    lines.push(`matching build entries: ${totalFound}`);
+  }
+
+  const entries = (Array.isArray(record.buildLogEntries) ? record.buildLogEntries : []).filter(
+    (item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object',
+  );
+
+  if (entries.length === 0) {
+    if (truncated) {
+      lines.push('note: results were truncated by MCP');
+    }
+    return lines.join('\n');
+  }
+
+  lines.push('');
+  lines.push(`build log entries (${entries.length}):`);
+  for (const entry of entries) {
+    const task = typeof entry.buildTask === 'string' ? entry.buildTask : '<unknown task>';
+    lines.push(`- task: ${task}`);
+
+    const issues = (Array.isArray(entry.emittedIssues) ? entry.emittedIssues : []).filter(
+      (item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object',
+    );
+    if (issues.length === 0) {
+      lines.push('  issues: none');
+      continue;
+    }
+
+    lines.push(`  issues (${issues.length}):`);
+    for (const issue of issues) {
+      const severity = typeof issue.severity === 'string' ? issue.severity : 'issue';
+      const path = typeof issue.path === 'string' ? issue.path : '<unknown path>';
+      const line = typeof issue.line === 'number' && Number.isFinite(issue.line) ? issue.line : undefined;
+      const message = typeof issue.message === 'string' ? issue.message : '<no message>';
+
+      lines.push(`    - [${severity}] ${line ? `${path}:${line}` : path}`);
+      lines.push(`      ${message}`);
+    }
+  }
+
+  if (truncated) {
+    lines.push('');
+    lines.push('note: results were truncated by MCP');
+  }
+
+  return lines.join('\n');
 }
 
 function formatTestRunOutput(record: Record<string, unknown>): string {

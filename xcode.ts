@@ -142,6 +142,20 @@ program
   });
 
 program
+  .command('file-issues <filePath>')
+  .description('Refresh and list compiler diagnostics for a single file')
+  .action(async (filePath: string) => {
+    await withClient(async (ctx) => {
+      const tabIdentifier = await resolveTabIdentifier(ctx, true);
+      const result = await ctx.call('XcodeRefreshCodeIssuesInFile', {
+        tabIdentifier,
+        filePath,
+      });
+      printResult(result, ctx.output);
+    });
+  });
+
+program
   .command('build')
   .description('Build current project in active scheme')
   .action(async () => {

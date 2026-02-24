@@ -412,6 +412,29 @@ program
   );
 
 program
+  .command('snippet <sourceFilePath> <codeSnippet>')
+  .description('Execute a Swift snippet in the context of a source file')
+  .option('--exec-timeout <seconds>', 'Snippet execution timeout seconds', '120')
+  .action(
+    async (
+      sourceFilePath: string,
+      codeSnippet: string,
+      options: { execTimeout: string },
+    ) => {
+      await withClient(async (ctx) => {
+        const tabIdentifier = await resolveTabIdentifier(ctx, true);
+        const result = await ctx.call('ExecuteSnippet', {
+          tabIdentifier,
+          sourceFilePath,
+          codeSnippet,
+          timeout: Number(options.execTimeout),
+        });
+        printResult(result, ctx.output);
+      });
+    },
+  );
+
+program
   .command('doc <query>')
   .description('Search Apple docs via MCP docs search')
   .option('--frameworks <list>', 'Comma-separated frameworks')

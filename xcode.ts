@@ -7,6 +7,7 @@ import { printResult, unwrapResult } from './xcode-output.ts';
 import { copyPreviewToOutput, findPreviewPath } from './xcode-preview.ts';
 import { parseTestSpecifier } from './xcode-test.ts';
 import { renderLsTree } from './xcode-tree.ts';
+import { startMcpBridge } from './xcode-mcp.ts';
 import type { CliConfig, CommonOpts, ClientContext } from './xcode-types.ts';
 
 const SERVER_NAME = 'xcode-tools';
@@ -81,6 +82,24 @@ tab
     await writeConfig(config);
     console.log('Cleared default tab');
   });
+
+program
+  .command('mcp')
+  .description('Run local HTTP MCP bridge backed by `xcrun mcpbridge` stdio')
+  .option('--host <host>', 'Bind host', '127.0.0.1')
+  .option('--port <port>', 'Bind port', '8080')
+  .option('--path <path>', 'MCP endpoint path', '/mcp')
+  .option('--no-save-endpoint', 'Do not persist bridge URL into .xcode-cli.json')
+  .action(
+    async (options: { host: string; port: string; path: string; saveEndpoint?: boolean }) => {
+      await startMcpBridge({
+        host: options.host,
+        port: Number(options.port),
+        path: options.path,
+        saveEndpoint: options.saveEndpoint !== false,
+      });
+    },
+  );
 
 program
   .command('status')

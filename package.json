@@ -3,13 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "node --import tsx --test \"tests/**/*.test.ts\"",
-    "mcpbridge": "tsx ./src/mcpbridge.ts",
-    "xcode-mcp": "tsx ./src/xcode.ts",
-    "windows": "npm run xcode-mcp -- windows",
-    "status": "npm run xcode-mcp -- status",
-    "build": "npm run xcode-mcp -- build",
-    "testall": "npm run xcode-mcp -- test all"
+    "test": "node --import tsx --test \"tests/**/*.test.ts\""
   },
   "keywords": [],
   "author": "",

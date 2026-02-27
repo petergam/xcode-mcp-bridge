@@ -11,7 +11,8 @@ import { startMcpBridge } from './xcode-mcp.ts';
 import type { CommonOpts, ClientContext } from './xcode-types.ts';
 
 const SERVER_NAME = 'xcode-tools';
-const DEFAULT_URL = 'http://localhost:8080/mcp';
+const DEFAULT_PORT = '49321';
+const DEFAULT_URL = `http://localhost:${DEFAULT_PORT}/mcp`;
 
 const program = new Command();
 program
@@ -72,7 +73,7 @@ program
   .command('bridge')
   .description('Run local HTTP MCP bridge backed by `xcrun mcpbridge` stdio')
   .option('--host <host>', 'Bind host', '127.0.0.1')
-  .option('--port <port>', 'Bind port', '8080')
+  .option('--port <port>', 'Bind port', DEFAULT_PORT)
   .option('--path <path>', 'MCP endpoint path', '/mcp')
   .action(async (options: { host: string; port: string; path: string }) => {
     await startMcpBridge({

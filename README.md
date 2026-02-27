@@ -27,7 +27,7 @@ If exactly one Xcode tab is open, `--tab` is auto-detected.
 This repo includes a helper command to register the **HTTP bridge** as an MCP server (instead of registering `xcrun mcpbridge` directly):
 
 ```bash
-# after bridge is running on localhost:8080/mcp
+# after bridge is running on localhost:49321/mcp
 xcode-mcp agent-setup --client codex
 xcode-mcp agent-setup --client claude
 ```

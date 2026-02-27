@@ -47,6 +47,9 @@ function formatReadableOutput(value: unknown): string {
   if (isBuildLogPayload(record)) {
     return formatBuildLogOutput(record);
   }
+  if (isDocumentationPayload(record)) {
+    return formatDocumentationOutput(record);
+  }
 
   if (record.type === 'error' && typeof record.data === 'string') {
     return `Error: ${record.data}`;
@@ -105,6 +108,72 @@ function isTestRunPayload(record: Record<string, unknown>): boolean {
 
 function isBuildLogPayload(record: Record<string, unknown>): boolean {
   return Array.isArray(record.buildLogEntries) && typeof record.buildResult === 'string';
+}
+
+function isDocumentationPayload(record: Record<string, unknown>): boolean {
+  return Array.isArray(record.documents);
+}
+
+function formatDocumentationOutput(record: Record<string, unknown>): string {
+  const lines: string[] = [];
+  for (const [key, value] of Object.entries(record)) {
+    if (key === 'documents' || value === undefined) {
+      continue;
+    }
+    if (Array.isArray(value)) {
+      if (value.length === 0) {
+        lines.push(`${key}: []`);
+      } else {
+        lines.push(`${key}:`);
+        for (const item of value) {
+          lines.push(`  - ${formatListItem(item)}`);
+        }
+      }
+      continue;
+    }
+    if (value && typeof value === 'object') {
+      lines.push(`${key}:`);
+      const nested = formatObject(value as Record<string, unknown>)
+        .split('\n')
+        .map((line) => `  ${line}`);
+      lines.push(...nested);
+      continue;
+    }
+    lines.push(`${key}: ${String(value)}`);
+  }
+
+  const documents = (Array.isArray(record.documents) ? record.documents : []).filter(
+    (item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object',
+  );
+  if (lines.length > 0) {
+    lines.push('');
+  }
+  if (documents.length === 0) {
+    lines.push('Documents: none');
+    return lines.join('\n');
+  }
+
+  lines.push(`Documents (${documents.length})`);
+  for (let index = 0; index < documents.length; index += 1) {
+    const doc = documents[index];
+    const title =
+      firstString(doc, ['title', 'displayName', 'name']) ??
+      firstString(doc, ['path', 'uri']) ??
+      `Document ${index + 1}`;
+    lines.push('');
+    lines.push(`[${index + 1}] ${title}`);
+    const details = formatObject(doc)
+      .split('\n')
+      .map((line) => `  ${line}`);
+    lines.push(...details);
+  }
+
+  if (record.truncated === true) {
+    lines.push('');
+    lines.push('note: results were truncated by MCP');
+  }
+
+  return lines.join('\n');
 }
 
 function formatBuildLogOutput(record: Record<string, unknown>): string {

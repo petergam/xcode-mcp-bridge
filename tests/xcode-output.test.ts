@@ -97,3 +97,35 @@ test('printResult formats build log payload in text mode', () => {
   assert.match(lines[0], /Compile Swift Sources/);
   assert.match(lines[0], /\[error\] App\/Main.swift:12/);
 });
+
+test('printResult formats documentation payload with detailed fields in text mode', () => {
+  const lines = withCapturedConsole(() => {
+    printResult(
+      fakeResult({
+        structured: {
+          query: 'NavigationStack',
+          frameworks: ['SwiftUI'],
+          documents: [
+            {
+              title: 'NavigationStack',
+              path: '/documentation/swiftui/navigationstack',
+              role: 'symbol',
+              summary: 'A view that displays a root view and enables navigation.',
+              fragments: [
+                { kind: 'paragraph', text: 'Use this to push destinations.' },
+              ],
+            },
+          ],
+        },
+      }) as never,
+      'text',
+    );
+  });
+
+  assert.equal(lines.length, 1);
+  assert.match(lines[0], /query: NavigationStack/);
+  assert.match(lines[0], /frameworks:/);
+  assert.match(lines[0], /\[1\] NavigationStack/);
+  assert.match(lines[0], /fragments:/);
+  assert.match(lines[0], /kind: paragraph/);
+});

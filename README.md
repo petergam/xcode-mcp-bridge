@@ -1,14 +1,7 @@
 # xcode-mcp
+Human and agent friendly CLI for using Xcode MCP tools from the terminal and from agent (using cli or MCP)
 
-A friendly CLI for using Xcode MCP tools from the terminal.
-
-`xcode-mcp` talks to Xcode through an HTTP MCP bridge (`xcode-mcp bridge`) backed by `xcrun mcpbridge`.
-
-## Requirements
-
-- macOS with Xcode installed
-- Node.js 18+
-- An open Xcode window/workspace when running project commands
+`xcode-mcp bridge` talks to Xcode through an HTTP MCP bridge backed by `xcrun mcpbridge`.
 
 ## Quick Start
 

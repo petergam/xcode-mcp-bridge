@@ -34,6 +34,9 @@ Examples:
   # Start a local bridge in one terminal
   xcode-mcp bridge
 
+  # Discover tabIdentifier values
+  xcode-mcp windows
+
   # Build using a known Xcode tab identifier
   xcode-mcp --tab <tabIdentifier> build
 `,
@@ -516,6 +519,32 @@ program
     });
   });
 
+applyCommandOrder(program, [
+  'status',
+  'build',
+  'build-log',
+  'test',
+  'issues',
+  'file-issues',
+  'windows',
+  'read',
+  'grep',
+  'ls',
+  'glob',
+  'write',
+  'update',
+  'mv',
+  'mkdir',
+  'rm',
+  'preview',
+  'snippet',
+  'doc',
+  'agent-setup',
+  'bridge',
+  'tools',
+  'run',
+]);
+
 program.parseAsync(process.argv).catch((error) => {
   const issue = describeConnectionIssue(error);
   if (issue.kind === 'http') {
@@ -668,5 +697,17 @@ async function runCommand(command: string, args: string[], ignoreFailure = false
       }
       reject(new Error(`Command failed: ${command} ${args.join(' ')} (exit ${code ?? 'unknown'})`));
     });
+  });
+}
+
+function applyCommandOrder(root: Command, names: string[]): void {
+  const weights = new Map<string, number>(names.map((name, index) => [name, index]));
+  root.commands.sort((a, b) => {
+    const aWeight = weights.get(a.name()) ?? Number.MAX_SAFE_INTEGER;
+    const bWeight = weights.get(b.name()) ?? Number.MAX_SAFE_INTEGER;
+    if (aWeight !== bWeight) {
+      return aWeight - bWeight;
+    }
+    return a.name().localeCompare(b.name());
   });
 }

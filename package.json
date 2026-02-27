@@ -5,10 +5,17 @@
   "scripts": {
     "test": "node --import tsx --test \"tests/**/*.test.ts\""
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "keywords": [
+    "xcode",
+    "mcp",
+    "model-context-protocol",
+    "cli",
+    "ios",
+    "swift"
+  ],
+  "author": "Peter Gammelgaard",
+  "license": "MIT",
+  "description": "CLI for interacting with Xcode MCP tools from the terminal.",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.0",
     "commander": "^14.0.3",

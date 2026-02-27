@@ -22,6 +22,22 @@ program
   .option('--json', 'Output JSON (shorthand for --output json)')
   .option('-o, --output <format>', 'text | json', parseOutputFormat, 'text');
 
+program.addHelpText(
+  'after',
+  `
+Tab selection:
+  Commands that require tabIdentifier will use --tab (or XCODE_TAB_ID) when provided.
+  If neither is provided and exactly one Xcode tab is open, that tabIdentifier is auto-selected.
+
+Examples:
+  # Start a local bridge in one terminal
+  xcode-mcp bridge
+
+  # Build using a known Xcode tab identifier
+  xcode-mcp --tab <tabIdentifier> build
+`,
+);
+
 program
   .command('tools')
   .description('List all available Xcode MCP tools')

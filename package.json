@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "node --import tsx --test \"tests/**/*.test.ts\""
+    "test": "node --import tsx --test \"tests/**/*.test.ts\"",
+    "update:mcpbridge": "mcporter generate-cli --command \"xcrun mcpbridge\" --name mcpbridge --description \"xcode-tools\" --output ./src/mcpbridge.ts"
   },
   "keywords": [
     "xcode",

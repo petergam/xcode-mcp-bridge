@@ -1,5 +1,5 @@
 {
-  "name": "xcode-mcp",
+  "name": "xcode-mcp-bridge",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -20,11 +20,10 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.0",
     "commander": "^14.0.3",
-    "mcporter": "^0.7.3"
-  },
-  "devDependencies": {
+    "mcporter": "^0.7.3",
     "tsx": "^4.21.0"
   },
+  "devDependencies": {},
   "type": "module",
   "bin": {
     "xcode-mcp": "./bin/xcode-mcp"

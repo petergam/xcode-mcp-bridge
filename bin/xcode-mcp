@@ -9,10 +9,11 @@ while [ -h "$SOURCE" ]; do
 done
 DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
 ROOT_DIR="$(cd -P "$DIR/.." && pwd)"
-if ! node -e 'import("tsx").then(() => process.exit(0)).catch(() => process.exit(1))' >/dev/null 2>&1; then
+TSX_LOADER="$(node -e 'try { console.log(require.resolve("tsx", { paths: [process.argv[1]] })); } catch { process.exit(1); }' "$ROOT_DIR")"
+if [[ -z "$TSX_LOADER" || ! -f "$TSX_LOADER" ]]; then
   echo "xcode-mcp: missing runtime dependency 'tsx'" >&2
   echo "Reinstall package dependencies (npm install) or reinstall xcode-mcp-bridge." >&2
   exit 1
 fi
 
-exec node --import tsx "$ROOT_DIR/src/xcode.ts" "$@"
+exec node --import "$TSX_LOADER" "$ROOT_DIR/src/xcode.ts" "$@"

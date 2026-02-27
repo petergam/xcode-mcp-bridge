@@ -2,6 +2,7 @@
 import { Command } from 'commander';
 import { createRuntime, createServerProxy, describeConnectionIssue } from 'mcporter';
 import type { CallResult } from 'mcporter';
+import { spawn } from 'node:child_process';
 import { printResult, unwrapResult } from './xcode-output.ts';
 import { copyPreviewToOutput, findPreviewPath } from './xcode-preview.ts';
 import { parseTestSpecifier } from './xcode-test.ts';
@@ -77,6 +78,48 @@ program
       path: options.path,
     });
   });
+
+program
+  .command('agent-setup')
+  .description('Configure Codex/Claude MCP to use the xcode-mcp HTTP bridge')
+  .option('--client <client>', 'codex | claude | both', 'both')
+  .option('--name <name>', 'MCP server name', 'xcode')
+  .option('--url <url>', `Bridge MCP endpoint URL (default: ${DEFAULT_URL})`, DEFAULT_URL)
+  .option('--scope <scope>', 'Claude scope: local | user | project', 'local')
+  .option('--no-replace', 'Do not remove existing entries before adding')
+  .action(
+    async (options: {
+      client: string;
+      name: string;
+      url: string;
+      scope: string;
+      replace: boolean;
+    }) => {
+      const client = parseClientTarget(options.client);
+      if (client === 'codex' || client === 'both') {
+        if (options.replace) {
+          await runCommand('codex', ['mcp', 'remove', options.name], true);
+        }
+        await runCommand('codex', ['mcp', 'add', options.name, '--url', options.url]);
+      }
+
+      if (client === 'claude' || client === 'both') {
+        if (options.replace) {
+          await runCommand('claude', ['mcp', 'remove', '--scope', options.scope, options.name], true);
+        }
+        await runCommand('claude', [
+          'mcp',
+          'add',
+          '--transport',
+          'http',
+          '--scope',
+          options.scope,
+          options.name,
+          options.url,
+        ]);
+      }
+    },
+  );
 
 program
   .command('status')
@@ -603,4 +646,27 @@ function parseOutputFormat(value: string): CommonOpts['output'] {
     return normalized;
   }
   throw new Error(`Invalid output format '${value}'. Use 'text' or 'json'.`);
+}
+
+function parseClientTarget(value: string): 'codex' | 'claude' | 'both' {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'codex' || normalized === 'claude' || normalized === 'both') {
+    return normalized;
+  }
+  throw new Error(`Invalid client '${value}'. Use 'codex', 'claude', or 'both'.`);
+}
+
+async function runCommand(command: string, args: string[], ignoreFailure = false): Promise<void> {
+  console.error(`$ ${[command, ...args].join(' ')}`);
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(command, args, { stdio: 'inherit' });
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code === 0 || ignoreFailure) {
+        resolve();
+        return;
+      }
+      reject(new Error(`Command failed: ${command} ${args.join(' ')} (exit ${code ?? 'unknown'})`));
+    });
+  });
 }

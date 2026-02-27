@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --import tsx --test \"tests/**/*.test.ts\"",
     "mcpbridge": "tsx ./mcpbridge.ts",
     "xcode-mcp": "tsx ./xcode.ts",
     "windows": "npm run xcode-mcp -- windows",

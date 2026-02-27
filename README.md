@@ -5,6 +5,10 @@ Human and agent friendly CLI for using Xcode MCP tools from the terminal and fro
 
 ## Quick Start
 
+## Requirements
+
+- Xcode 26.3 or later
+
 ```bash
 # install globally from npm
 npm install -g xcode-mcp-bridge

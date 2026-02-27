@@ -10,13 +10,11 @@ import {
   isInitializeRequest,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { readConfig, writeConfig } from './xcode-config.ts';
 
 export type McpBridgeStartOptions = {
   host: string;
   port: number;
   path: string;
-  saveEndpoint: boolean;
 };
 
 type TransportSession = {
@@ -54,12 +52,6 @@ export async function startMcpBridge(options: McpBridgeStartOptions): Promise<vo
   };
 
   await upstream.connect(upstreamTransport);
-
-  if (options.saveEndpoint) {
-    const config = await readConfig();
-    config.endpoint = endpoint.toString();
-    await writeConfig(config);
-  }
 
   const sessions = new Map<string, TransportSession>();
   const server = http.createServer(async (req, res) => {
@@ -112,11 +104,7 @@ export async function startMcpBridge(options: McpBridgeStartOptions): Promise<vo
             if (!closedSessionId) {
               return;
             }
-            const closed = sessions.get(closedSessionId);
-            if (closed) {
-              closed.server.close().catch(() => undefined);
-              sessions.delete(closedSessionId);
-            }
+            sessions.delete(closedSessionId);
           };
 
           mcpServer = createSessionServer(upstream);
@@ -166,8 +154,7 @@ export async function startMcpBridge(options: McpBridgeStartOptions): Promise<vo
   });
 
   const cleanup = async () => {
-    for (const { server: sessionServer, transport } of sessions.values()) {
-      await transport.close().catch(() => undefined);
+    for (const { server: sessionServer } of sessions.values()) {
       await sessionServer.close().catch(() => undefined);
     }
     sessions.clear();
@@ -189,8 +176,7 @@ export async function startMcpBridge(options: McpBridgeStartOptions): Promise<vo
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
     server.listen(options.port, options.host, () => {
-      const saveSuffix = options.saveEndpoint ? ' (saved as default endpoint)' : '';
-      console.error(`MCP bridge listening on ${endpoint.toString()}${saveSuffix}`);
+      console.error(`MCP bridge listening on ${endpoint.toString()}`);
       console.error('Upstream stdio: xcrun mcpbridge');
       resolve();
     });

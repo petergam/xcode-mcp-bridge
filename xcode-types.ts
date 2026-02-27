@@ -1,10 +1,5 @@
 import type { CallResult } from 'mcporter';
 
-export type CliConfig = {
-  endpoint?: string;
-  defaultTabId?: string;
-};
-
 export type CommonOpts = {
   url?: string;
   tab?: string;
@@ -29,6 +24,5 @@ export type ClientContext = {
   timeoutMs: number;
   endpoint: string;
   tabOverride?: string;
-  config: CliConfig;
   call: (toolName: string, args?: Record<string, unknown>) => Promise<CallResult>;
 };

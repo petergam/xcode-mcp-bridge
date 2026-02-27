@@ -10,7 +10,7 @@ done
 DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
 TSX_LOADER="$DIR/node_modules/tsx/dist/loader.mjs"
 if [[ ! -f "$TSX_LOADER" ]]; then
-  echo "xcode: missing runtime loader at $TSX_LOADER" >&2
+  echo "xcode-mcp: missing runtime loader at $TSX_LOADER" >&2
   echo "Install dependencies in $DIR (npm install)." >&2
   exit 1
 fi

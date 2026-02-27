@@ -1,15 +1,15 @@
 {
-  "name": "xcode-mcp-cli",
+  "name": "xcode-mcp",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "mcpbridge": "tsx ./mcpbridge.ts",
-    "xcode": "tsx ./xcode.ts",
-    "windows": "npm run xcode -- windows",
-    "status": "npm run xcode -- status",
-    "build": "npm run xcode -- build",
-    "testall": "npm run xcode -- test all"
+    "xcode-mcp": "tsx ./xcode.ts",
+    "windows": "npm run xcode-mcp -- windows",
+    "status": "npm run xcode-mcp -- status",
+    "build": "npm run xcode-mcp -- build",
+    "testall": "npm run xcode-mcp -- test all"
   },
   "keywords": [],
   "author": "",
@@ -25,6 +25,6 @@
   },
   "type": "module",
   "bin": {
-    "xcode": "./xcode"
+    "xcode-mcp": "./xcode-mcp"
   }
 }

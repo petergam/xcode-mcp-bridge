@@ -2,20 +2,19 @@
 import { Command } from 'commander';
 import { createRuntime, createServerProxy, describeConnectionIssue } from 'mcporter';
 import type { CallResult } from 'mcporter';
-import { readConfig, writeConfig } from './xcode-config.ts';
 import { printResult, unwrapResult } from './xcode-output.ts';
 import { copyPreviewToOutput, findPreviewPath } from './xcode-preview.ts';
 import { parseTestSpecifier } from './xcode-test.ts';
 import { renderLsTree } from './xcode-tree.ts';
 import { startMcpBridge } from './xcode-mcp.ts';
-import type { CliConfig, CommonOpts, ClientContext } from './xcode-types.ts';
+import type { CommonOpts, ClientContext } from './xcode-types.ts';
 
 const SERVER_NAME = 'xcode-tools';
 const DEFAULT_URL = 'http://localhost:8080/mcp';
 
 const program = new Command();
 program
-  .name('xcode')
+  .name('xcode-mcp')
   .description('Friendly Xcode MCP CLI for browsing, editing, building, and testing projects.')
   .option('--url <url>', `MCP endpoint (default: ${DEFAULT_URL})`)
   .option('--tab <tabIdentifier>', 'Default tab identifier for commands that need it')
@@ -49,57 +48,19 @@ program
     });
   });
 
-const tab = program.command('tab').description('Manage default tab identifier');
-
-tab
-  .command('show')
-  .description('Show the stored default tab identifier')
-  .action(async () => {
-    const config = await readConfig();
-    if (!config.defaultTabId) {
-      console.log('No default tab set. Use: xcode tab set <tabIdentifier>');
-      return;
-    }
-    console.log(config.defaultTabId);
-  });
-
-tab
-  .command('set <tabIdentifier>')
-  .description('Persist default tab identifier in .xcode-cli.json')
-  .action(async (tabIdentifier: string) => {
-    const config = await readConfig();
-    config.defaultTabId = tabIdentifier;
-    await writeConfig(config);
-    console.log(`Saved default tab: ${tabIdentifier}`);
-  });
-
-tab
-  .command('clear')
-  .description('Clear stored default tab identifier')
-  .action(async () => {
-    const config = await readConfig();
-    delete config.defaultTabId;
-    await writeConfig(config);
-    console.log('Cleared default tab');
-  });
-
 program
-  .command('mcp')
+  .command('bridge')
   .description('Run local HTTP MCP bridge backed by `xcrun mcpbridge` stdio')
   .option('--host <host>', 'Bind host', '127.0.0.1')
   .option('--port <port>', 'Bind port', '8080')
   .option('--path <path>', 'MCP endpoint path', '/mcp')
-  .option('--no-save-endpoint', 'Do not persist bridge URL into .xcode-cli.json')
-  .action(
-    async (options: { host: string; port: string; path: string; saveEndpoint?: boolean }) => {
-      await startMcpBridge({
-        host: options.host,
-        port: Number(options.port),
-        path: options.path,
-        saveEndpoint: options.saveEndpoint !== false,
-      });
-    },
-  );
+  .action(async (options: { host: string; port: string; path: string }) => {
+    await startMcpBridge({
+      host: options.host,
+      port: Number(options.port),
+      path: options.path,
+    });
+  });
 
 program
   .command('status')
@@ -511,9 +472,8 @@ program.parseAsync(process.argv).catch((error) => {
 });
 
 async function withClient(handler: (ctx: ClientContext) => Promise<void>) {
-  const config = await readConfig();
   const root = program.opts<CommonOpts>();
-  const endpoint = root.url ?? config.endpoint ?? process.env.XCODE_MCP_URL ?? DEFAULT_URL;
+  const endpoint = root.url ?? process.env.XCODE_MCP_URL ?? DEFAULT_URL;
   const timeoutMs = Number(root.timeout ?? '60000');
   const output = root.json ? 'json' : parseOutputFormat(root.output ?? 'text');
 
@@ -541,7 +501,6 @@ async function withClient(handler: (ctx: ClientContext) => Promise<void>) {
       timeoutMs,
       endpoint,
       tabOverride: root.tab ?? process.env.XCODE_TAB_ID,
-      config,
       call,
     });
   } finally {
@@ -550,15 +509,12 @@ async function withClient(handler: (ctx: ClientContext) => Promise<void>) {
 }
 
 async function resolveTabIdentifier(
-  ctx: Pick<ClientContext, 'tabOverride' | 'config' | 'call'>,
+  ctx: Pick<ClientContext, 'tabOverride' | 'call'>,
   autoDiscover: boolean,
   windowsResult?: CallResult,
 ): Promise<string> {
   if (ctx.tabOverride) {
     return ctx.tabOverride;
-  }
-  if (ctx.config.defaultTabId) {
-    return ctx.config.defaultTabId;
   }
   if (autoDiscover) {
     const windows = windowsResult ?? (await ctx.call('XcodeListWindows'));
@@ -568,7 +524,7 @@ async function resolveTabIdentifier(
     }
   }
   throw new Error(
-    'No tab identifier found. Use --tab <id>, set one with `xcode tab set <id>`, or run `xcode windows`.',
+    'No tab identifier found. Use --tab <id> (or XCODE_TAB_ID) or run `xcode-mcp windows`.',
   );
 }
 

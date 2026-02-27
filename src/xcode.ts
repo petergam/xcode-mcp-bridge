@@ -557,7 +557,7 @@ program.parseAsync(process.argv).catch((error) => {
   } else {
     console.error(issue.rawMessage || String(error));
   }
-  process.exitCode = 1;
+  process.exit(1);
 });
 
 async function withClient(handler: (ctx: ClientContext) => Promise<void>) {

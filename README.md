@@ -2,7 +2,6 @@
 Human and agent friendly CLI for using Xcode MCP tools from the terminal and from agent (using cli or MCP)
 
 `xcode-mcp bridge` talks to Xcode through an HTTP MCP bridge backed by `xcrun mcpbridge`.
-The bridge performs a startup connectivity check and exits non-zero if Xcode is unreachable.
 
 ## Quick Start
 

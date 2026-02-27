@@ -51,7 +51,23 @@ export async function startMcpBridge(options: McpBridgeStartOptions): Promise<vo
     console.error(`Upstream stdio MCP error: ${error.message}`);
   };
 
-  await upstream.connect(upstreamTransport);
+  try {
+    await upstream.connect(upstreamTransport);
+  } catch (error) {
+    await upstream.close().catch(() => undefined);
+    await upstreamTransport.close().catch(() => undefined);
+    const details = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      [
+        'Unable to connect to Xcode via `xcrun mcpbridge`.',
+        'Check the following and try again:',
+        '1) Xcode 26.3 or later is installed.',
+        '2) Xcode is open.',
+        '3) `xcode-select -p` points to your Xcode developer directory.',
+        `Original error: ${details}`,
+      ].join('\n'),
+    );
+  }
 
   const sessions = new Map<string, TransportSession>();
   const server = http.createServer(async (req, res) => {

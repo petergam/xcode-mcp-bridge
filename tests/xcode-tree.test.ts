@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { renderLsTree } from '../xcode-tree.ts';
+import { renderLsTree } from '../src/xcode-tree.ts';
 
 test('renderLsTree returns null for non-object payload', () => {
   assert.equal(renderLsTree(null, '/'), null);

@@ -8,11 +8,12 @@ while [ -h "$SOURCE" ]; do
   fi
 done
 DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
-TSX_LOADER="$DIR/node_modules/tsx/dist/loader.mjs"
+ROOT_DIR="$(cd -P "$DIR/.." && pwd)"
+TSX_LOADER="$ROOT_DIR/node_modules/tsx/dist/loader.mjs"
 if [[ ! -f "$TSX_LOADER" ]]; then
   echo "xcode-mcp: missing runtime loader at $TSX_LOADER" >&2
-  echo "Install dependencies in $DIR (npm install)." >&2
+  echo "Install dependencies in $ROOT_DIR (npm install)." >&2
   exit 1
 fi
 
-exec node --import "$TSX_LOADER" "$DIR/xcode.ts" "$@"
+exec node --import "$TSX_LOADER" "$ROOT_DIR/src/xcode.ts" "$@"

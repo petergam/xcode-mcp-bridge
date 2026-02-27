@@ -4,8 +4,8 @@
   "main": "index.js",
   "scripts": {
     "test": "node --import tsx --test \"tests/**/*.test.ts\"",
-    "mcpbridge": "tsx ./mcpbridge.ts",
-    "xcode-mcp": "tsx ./xcode.ts",
+    "mcpbridge": "tsx ./src/mcpbridge.ts",
+    "xcode-mcp": "tsx ./src/xcode.ts",
     "windows": "npm run xcode-mcp -- windows",
     "status": "npm run xcode-mcp -- status",
     "build": "npm run xcode-mcp -- build",
@@ -25,6 +25,6 @@
   },
   "type": "module",
   "bin": {
-    "xcode-mcp": "./xcode-mcp"
+    "xcode-mcp": "./bin/xcode-mcp"
   }
 }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseTestSpecifier } from '../xcode-test.ts';
+import { parseTestSpecifier } from '../src/xcode-test.ts';
 
 test('parseTestSpecifier parses valid target/test value', () => {
   const parsed = parseTestSpecifier('AppTests/testExample()');

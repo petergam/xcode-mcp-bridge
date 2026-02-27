@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { printResult, unwrapResult } from '../xcode-output.ts';
+import { printResult, unwrapResult } from '../src/xcode-output.ts';
 
 type FakeCallResult = {
   structuredContent: () => unknown;

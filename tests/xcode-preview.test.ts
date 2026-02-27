@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import os from 'node:os';
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
-import { copyPreviewToOutput, findPreviewPath } from '../xcode-preview.ts';
+import { copyPreviewToOutput, findPreviewPath } from '../src/xcode-preview.ts';
 
 test('findPreviewPath finds nested image path fields', () => {
   const payload = {

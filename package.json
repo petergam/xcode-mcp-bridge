@@ -15,6 +15,10 @@
     "swift"
   ],
   "author": "Peter Gammelgaard",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/petergam/xcode-mcp-bridge.git"
+  },
   "license": "MIT",
   "description": "CLI for interacting with Xcode MCP tools from the terminal.",
   "dependencies": {

@@ -38,6 +38,7 @@ If exactly one Xcode tab is open, `--tab` is auto-detected.
 ## Use With Codex / Claude
 
 This repo includes a helper command to register the **HTTP bridge** as an MCP server with your agent.
+It also helps fix the Xcode + Codex issue where Xcode repeatedly asks for permission by keeping the MCP connection alive.
 
 ```bash
 # after bridge is running on localhost:49321/mcp

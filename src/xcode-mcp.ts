@@ -10,6 +10,7 @@ import {
   isInitializeRequest,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
+import { parseTestSpecifier, type ParsedTestSpecifier } from './xcode-test.ts';
 
 export type McpBridgeStartOptions = {
   host: string;
@@ -219,7 +220,8 @@ function createSessionServer(upstream: Client): Server {
   });
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    return await upstream.callTool(request.params);
+    const params = await normalizeRunSomeTestsCall(request.params, upstream);
+    return await upstream.callTool(params);
   });
 
   return server;
@@ -255,4 +257,227 @@ async function parseJsonBody(req: http.IncomingMessage): Promise<unknown> {
     return undefined;
   }
   return JSON.parse(raw);
+}
+
+type TestCatalogEntry = {
+  targetName: string;
+  identifier: string;
+};
+
+async function normalizeRunSomeTestsCall(
+  params: Record<string, unknown>,
+  upstream: Client,
+): Promise<Record<string, unknown>> {
+  if (params.name !== 'RunSomeTests') {
+    return params;
+  }
+  if (!params.arguments || typeof params.arguments !== 'object' || Array.isArray(params.arguments)) {
+    return params;
+  }
+
+  const argumentsRecord = params.arguments as Record<string, unknown>;
+  const testsValue = argumentsRecord.tests;
+  if (!Array.isArray(testsValue)) {
+    return params;
+  }
+
+  const defaultTargetName = normalizeString(argumentsRecord.targetName);
+  const parsed = testsValue.map((value) => parseBridgeTestSpecifier(value, defaultTargetName));
+  const normalizedTests = await resolveBridgeTestSpecifiers(parsed, argumentsRecord, upstream);
+
+  return {
+    ...params,
+    arguments: {
+      ...argumentsRecord,
+      tests: normalizedTests,
+    },
+  };
+}
+
+function parseBridgeTestSpecifier(
+  value: unknown,
+  defaultTargetName?: string,
+): ParsedTestSpecifier {
+  if (typeof value === 'string') {
+    return parseTestSpecifier(value, defaultTargetName);
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`Invalid RunSomeTests entry '${String(value)}'. Expected a string or object.`);
+  }
+
+  const record = value as Record<string, unknown>;
+  const targetName = normalizeString(record.targetName) ?? defaultTargetName;
+  const testIdentifier = normalizeString(record.testIdentifier);
+
+  if (testIdentifier) {
+    return {
+      source: testIdentifier,
+      targetName,
+      testIdentifier,
+    };
+  }
+
+  const shorthand = normalizeString(record.identifier) ?? normalizeString(record.test);
+  if (shorthand) {
+    return parseTestSpecifier(shorthand, targetName);
+  }
+
+  throw new Error('Invalid RunSomeTests entry. Missing testIdentifier/identifier/test field.');
+}
+
+async function resolveBridgeTestSpecifiers(
+  parsed: ParsedTestSpecifier[],
+  args: Record<string, unknown>,
+  upstream: Client,
+): Promise<Array<{ targetName: string; testIdentifier: string }>> {
+  if (parsed.every((entry) => Boolean(entry.targetName))) {
+    return parsed.map((entry) => ({
+      targetName: entry.targetName!.trim(),
+      testIdentifier: entry.testIdentifier,
+    }));
+  }
+
+  const tabIdentifier = normalizeString(args.tabIdentifier);
+  if (!tabIdentifier) {
+    throw new Error(
+      "RunSomeTests shorthand requires 'tabIdentifier' to resolve test target. Provide 'targetName' explicitly or use Target::Identifier.",
+    );
+  }
+
+  const catalog = await fetchTestCatalog(upstream, tabIdentifier);
+  const availableTargets = [...new Set(catalog.map((entry) => entry.targetName))].sort();
+  const lookup = buildCatalogLookup(catalog);
+
+  return parsed.map((entry) => {
+    if (entry.targetName) {
+      return {
+        targetName: entry.targetName.trim(),
+        testIdentifier: entry.testIdentifier,
+      };
+    }
+
+    const matches = resolveCatalogEntries(lookup, entry.testIdentifier);
+    if (matches.length === 0) {
+      const targetHint =
+        availableTargets.length > 0
+          ? ` Active scheme targets: ${availableTargets.join(', ')}.`
+          : ' Active scheme has no discoverable test targets.';
+      throw new Error(
+        `Unable to resolve target for '${entry.source}'. Use Target::Identifier or provide targetName.${targetHint} If this test belongs to another scheme, switch the active scheme in Xcode first.`,
+      );
+    }
+
+    const targets = [...new Set(matches.map((match) => match.targetName))].sort();
+    if (targets.length > 1) {
+      throw new Error(
+        `Ambiguous RunSomeTests shorthand '${entry.source}'. Matching targets: ${targets.join(', ')}. Use Target::Identifier.`,
+      );
+    }
+
+    return {
+      targetName: targets[0],
+      testIdentifier: matches[0].identifier,
+    };
+  });
+}
+
+async function fetchTestCatalog(upstream: Client, tabIdentifier: string): Promise<TestCatalogEntry[]> {
+  const response = await upstream.callTool({
+    name: 'GetTestList',
+    arguments: { tabIdentifier },
+  });
+  const value =
+    (response as { structuredContent?: unknown }).structuredContent ?? response;
+  return extractTestCatalog(value);
+}
+
+function extractTestCatalog(value: unknown): TestCatalogEntry[] {
+  const entries: TestCatalogEntry[] = [];
+  const queue: unknown[] = [value];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) {
+      continue;
+    }
+    if (Array.isArray(current)) {
+      queue.push(...current);
+      continue;
+    }
+    if (typeof current !== 'object') {
+      continue;
+    }
+
+    const record = current as Record<string, unknown>;
+    const targetName = normalizeString(record.targetName);
+    const identifier = normalizeString(record.identifier);
+    if (targetName && identifier) {
+      entries.push({ targetName, identifier });
+    }
+
+    for (const nested of Object.values(record)) {
+      if (!nested) {
+        continue;
+      }
+      if (Array.isArray(nested)) {
+        queue.push(...nested);
+      } else if (typeof nested === 'object') {
+        queue.push(nested);
+      }
+    }
+  }
+  return entries;
+}
+
+function buildCatalogLookup(catalog: TestCatalogEntry[]): Map<string, TestCatalogEntry[]> {
+  const lookup = new Map<string, TestCatalogEntry[]>();
+  for (const entry of catalog) {
+    for (const key of identifierLookupKeys(entry.identifier)) {
+      const existing = lookup.get(key);
+      if (existing) {
+        existing.push(entry);
+      } else {
+        lookup.set(key, [entry]);
+      }
+    }
+  }
+  return lookup;
+}
+
+function resolveCatalogEntries(
+  lookup: Map<string, TestCatalogEntry[]>,
+  testIdentifier: string,
+): TestCatalogEntry[] {
+  const matches = new Map<string, TestCatalogEntry>();
+  for (const key of identifierLookupKeys(testIdentifier)) {
+    const entries = lookup.get(key);
+    if (!entries) {
+      continue;
+    }
+    for (const entry of entries) {
+      matches.set(`${entry.targetName}::${entry.identifier}`, entry);
+    }
+  }
+  return [...matches.values()];
+}
+
+function identifierLookupKeys(identifier: string): string[] {
+  const trimmed = identifier.trim();
+  if (!trimmed) {
+    return [];
+  }
+  const keys = new Set<string>([trimmed]);
+  if (trimmed.endsWith('()')) {
+    keys.add(trimmed.slice(0, -2));
+  } else if (!trimmed.endsWith(')')) {
+    keys.add(`${trimmed}()`);
+  }
+  return [...keys];
+}
+
+function normalizeString(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
 }

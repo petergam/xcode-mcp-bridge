@@ -29,6 +29,11 @@
   },
   "devDependencies": {},
   "type": "module",
+  "files": [
+    "bin/",
+    "src/",
+    "skills/"
+  ],
   "bin": {
     "xcode-mcp": "./bin/xcode-mcp"
   }

@@ -5,7 +5,7 @@ import type { CallResult } from 'mcporter';
 import { spawn } from 'node:child_process';
 import { printResult, unwrapResult } from './xcode-output.ts';
 import { copyPreviewToOutput, findPreviewPath } from './xcode-preview.ts';
-import { parseTestSpecifier } from './xcode-test.ts';
+import { parseTestSpecifier, type ParsedTestSpecifier } from './xcode-test.ts';
 import { renderLsTree } from './xcode-tree.ts';
 import { startMcpBridge } from './xcode-mcp.ts';
 import { installService, uninstallService, printServiceStatus, tailLogs } from './xcode-service.ts';
@@ -256,11 +256,22 @@ tests
 
 tests
   .command('some <tests...>')
-  .description('Run selected tests by identifiers (e.g. TargetName/testName())')
-  .action(async (testsArg: string[]) => {
+  .description('Run selected tests using target+identifier specifiers')
+  .option('--target <targetName>', 'Default test target for identifier-only specs')
+  .addHelpText(
+    'after',
+    `
+Examples:
+  xcode-mcp test some "DashProxyTests::AccessKeyTests/testParseEndpointSimple()"
+  xcode-mcp test some "DashProxyTests/AccessKeyTests/testParseEndpointSimple()"
+  xcode-mcp test some --target DashProxyTests "AccessKeyTests#testParseEndpointSimple"
+`,
+  )
+  .action(async (testsArg: string[], options: { target?: string }) => {
     await withClient(async (ctx) => {
       const tabIdentifier = await resolveTabIdentifier(ctx, true);
-      const tests = testsArg.map(parseTestSpecifier);
+      const parsed = testsArg.map((value) => parseTestSpecifier(value, options.target));
+      const tests = await resolveTestSpecifiers(parsed, ctx, tabIdentifier);
       const result = await ctx.call('RunSomeTests', { tabIdentifier, tests });
       printResult(result, ctx.output);
     });
@@ -727,6 +738,147 @@ function collectTabIdentifiersFromText(text: string, sink: Set<string>) {
       sink.add(tabIdentifier);
     }
   }
+}
+
+type NormalizedTestSpecifier = {
+  targetName: string;
+  testIdentifier: string;
+};
+
+type TestCatalogEntry = {
+  targetName: string;
+  identifier: string;
+};
+
+async function resolveTestSpecifiers(
+  parsed: ParsedTestSpecifier[],
+  ctx: Pick<ClientContext, 'call'>,
+  tabIdentifier: string,
+): Promise<NormalizedTestSpecifier[]> {
+  if (parsed.every((entry) => Boolean(entry.targetName))) {
+    return parsed.map((entry) => ({
+      targetName: entry.targetName!.trim(),
+      testIdentifier: entry.testIdentifier,
+    }));
+  }
+
+  const listResult = await ctx.call('GetTestList', { tabIdentifier });
+  const catalog = extractTestCatalog(unwrapResult(listResult));
+  const availableTargets = [...new Set(catalog.map((entry) => entry.targetName))].sort();
+  const byIdentifier = buildCatalogLookup(catalog);
+
+  return parsed.map((entry) => {
+    if (entry.targetName) {
+      return {
+        targetName: entry.targetName.trim(),
+        testIdentifier: entry.testIdentifier,
+      };
+    }
+
+    const candidates = resolveCatalogEntries(byIdentifier, entry.testIdentifier);
+    if (candidates.length === 0) {
+      const targetHint =
+        availableTargets.length > 0
+          ? ` Active scheme targets: ${availableTargets.join(', ')}.`
+          : ' Active scheme has no discoverable test targets.';
+      throw new Error(
+        `Unable to resolve target for '${entry.source}'. Run 'xcode-mcp --tab ${tabIdentifier} test list --json' and use 'Target::Identifier'.${targetHint} If this test belongs to another scheme, switch active scheme in Xcode first.`,
+      );
+    }
+
+    const targetNames = [...new Set(candidates.map((candidate) => candidate.targetName))].sort();
+    if (targetNames.length > 1) {
+      throw new Error(
+        `Ambiguous test specifier '${entry.source}'. Matching targets: ${targetNames.join(', ')}. Use 'Target::${entry.testIdentifier}'.`,
+      );
+    }
+
+    return {
+      targetName: targetNames[0],
+      testIdentifier: candidates[0].identifier,
+    };
+  });
+}
+
+function extractTestCatalog(value: unknown): TestCatalogEntry[] {
+  const entries: TestCatalogEntry[] = [];
+  const queue: unknown[] = [value];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) {
+      continue;
+    }
+    if (Array.isArray(current)) {
+      queue.push(...current);
+      continue;
+    }
+    if (typeof current !== 'object') {
+      continue;
+    }
+    const record = current as Record<string, unknown>;
+    const targetName = typeof record.targetName === 'string' ? record.targetName.trim() : '';
+    const identifier = typeof record.identifier === 'string' ? record.identifier.trim() : '';
+    if (targetName && identifier) {
+      entries.push({ targetName, identifier });
+    }
+    for (const nested of Object.values(record)) {
+      if (!nested) {
+        continue;
+      }
+      if (Array.isArray(nested)) {
+        queue.push(...nested);
+      } else if (typeof nested === 'object') {
+        queue.push(nested);
+      }
+    }
+  }
+  return entries;
+}
+
+function buildCatalogLookup(catalog: TestCatalogEntry[]): Map<string, TestCatalogEntry[]> {
+  const lookup = new Map<string, TestCatalogEntry[]>();
+  for (const entry of catalog) {
+    for (const key of identifierLookupKeys(entry.identifier)) {
+      const existing = lookup.get(key);
+      if (existing) {
+        existing.push(entry);
+      } else {
+        lookup.set(key, [entry]);
+      }
+    }
+  }
+  return lookup;
+}
+
+function resolveCatalogEntries(
+  lookup: Map<string, TestCatalogEntry[]>,
+  testIdentifier: string,
+): TestCatalogEntry[] {
+  const matches = new Map<string, TestCatalogEntry>();
+  for (const key of identifierLookupKeys(testIdentifier)) {
+    const entries = lookup.get(key);
+    if (!entries) {
+      continue;
+    }
+    for (const entry of entries) {
+      matches.set(`${entry.targetName}::${entry.identifier}`, entry);
+    }
+  }
+  return [...matches.values()];
+}
+
+function identifierLookupKeys(identifier: string): string[] {
+  const trimmed = identifier.trim();
+  if (!trimmed) {
+    return [];
+  }
+  const keys = new Set<string>([trimmed]);
+  if (trimmed.endsWith('()')) {
+    keys.add(trimmed.slice(0, -2));
+  } else if (!trimmed.endsWith(')')) {
+    keys.add(`${trimmed}()`);
+  }
+  return [...keys];
 }
 
 function parseOutputFormat(value: string): CommonOpts['output'] {

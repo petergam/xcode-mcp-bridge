@@ -68,9 +68,17 @@ xcode-mcp snippet "MyApp/Sources/SomeFile.swift" "print(someExpression)"
 ### 9. Testing
 ```bash
 xcode-mcp test all
-xcode-mcp test some "TargetName/testMethod()"
+xcode-mcp test list --json
+xcode-mcp test some "TargetName::ClassName/testMethod()"
+xcode-mcp test some --target TargetName "ClassName#testMethod"
 xcode-mcp test list
 ```
+For exact MCP parity, use `targetName` + `identifier` from `test list --json`:
+- `targetName` maps to `RunSomeTests.tests[].targetName`
+- `identifier` maps to `RunSomeTests.tests[].testIdentifier`
+
+`RunSomeTests` only runs tests from the active scheme's active test plan in Xcode.
+If a target is missing (for example you need `DashProxyMac` while `DashProxy` is active), switch scheme in Xcode first, then run `xcode-mcp test list --json` again.
 
 ### 10. Search Apple documentation
 ```bash
@@ -105,3 +113,26 @@ xcode-mcp service uninstall   # Stop and remove service
 - If the bridge is not responding: `xcode-mcp service status` then `xcode-mcp service uninstall && xcode-mcp service install`.
 - For JSON output, add `--json` to any command.
 - Use `xcode-mcp run <toolName> --args '{"key":"value"}'` to invoke any MCP tool directly.
+
+## CLI to MCP Mapping
+- `status` → `XcodeListWindows` + `XcodeListNavigatorIssues`
+- `build` → `BuildProject`
+- `build-log` → `GetBuildLog`
+- `test all` → `RunAllTests`
+- `test list` → `GetTestList`
+- `test some` → `RunSomeTests`
+- `issues` → `XcodeListNavigatorIssues`
+- `file-issues` → `XcodeRefreshCodeIssuesInFile`
+- `windows` → `XcodeListWindows`
+- `read` → `XcodeRead`
+- `grep` → `XcodeGrep`
+- `ls` → `XcodeLS`
+- `glob` → `XcodeGlob`
+- `write` → `XcodeWrite`
+- `update` → `XcodeUpdate`
+- `mv` → `XcodeMV`
+- `mkdir` → `XcodeMakeDir`
+- `rm` → `XcodeRM`
+- `preview` → `RenderPreview`
+- `snippet` → `ExecuteSnippet`
+- `doc` → `DocumentationSearch`

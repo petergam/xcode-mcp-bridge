@@ -35,6 +35,36 @@ xcode-mcp --tab <tabIdentifier> build
 
 If exactly one Xcode tab is open, `--tab` is auto-detected.
 
+## Background Service (launchd)
+
+Run the bridge as a persistent background service that auto-starts on login:
+
+```bash
+# install and start the launchd service
+xcode-mcp service install
+
+# check if the bridge is running
+xcode-mcp service status
+
+# follow bridge logs
+xcode-mcp service logs -f
+
+# stop and remove the service
+xcode-mcp service uninstall
+```
+
+## Install Skill for Claude Code / Codex
+
+Install the `xcode-mcp` skill so agents know how to use the CLI:
+
+```bash
+# install skill for Claude Code
+xcode-mcp skill install --skill-root-dir ~/.claude/skills
+
+# install skill for Codex
+xcode-mcp skill install --skill-root-dir ~/.codex/skills
+```
+
 ## Use With Codex / Claude
 
 This repo includes a helper command to register the **HTTP bridge** as an MCP server with your agent.

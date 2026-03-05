@@ -14,7 +14,10 @@ This repository provides a user-friendly CLI (`xcode-mcp`) for interacting with 
 - `src/xcode.ts`: main CLI entrypoint and command definitions.
 - `src/xcode-output.ts`: text/json result formatting.
 - `src/xcode-mcp.ts`: HTTP bridge server that proxies to `xcrun mcpbridge`.
+- `src/xcode-service.ts`: launchd service management (install/uninstall/status/logs).
+- `src/xcode-skill.ts`: skill install/uninstall for agent skill directories.
 - `src/mcpbridge.ts`: generated MCP client/bindings (generated, not hand-maintained).
+- `skills/xcode-mcp/SKILL.md`: agent skill definition shipped with the package.
 - `tests/*.test.ts`: Node test suite.
 - `bin/xcode-mcp`: runtime launcher.
 

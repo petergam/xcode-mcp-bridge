@@ -8,6 +8,8 @@ import { copyPreviewToOutput, findPreviewPath } from './xcode-preview.ts';
 import { parseTestSpecifier } from './xcode-test.ts';
 import { renderLsTree } from './xcode-tree.ts';
 import { startMcpBridge } from './xcode-mcp.ts';
+import { installService, uninstallService, printServiceStatus, tailLogs } from './xcode-service.ts';
+import { installSkill, uninstallSkill } from './xcode-skill.ts';
 import type { CommonOpts, ClientContext } from './xcode-types.ts';
 
 const SERVER_NAME = 'xcode-tools';
@@ -520,6 +522,61 @@ program
     });
   });
 
+// ── service (launchd daemon management) ──────────────────────────────
+
+const service = program.command('service').description('Manage bridge as a background launchd service');
+
+service
+  .command('install')
+  .description('Install and start bridge as a macOS launchd service')
+  .option('--port <port>', 'Bridge port', DEFAULT_PORT)
+  .action(async (options: { port: string }) => {
+    await installService({ port: Number(options.port) });
+  });
+
+service
+  .command('uninstall')
+  .description('Stop and remove bridge launchd service')
+  .action(async () => {
+    await uninstallService();
+  });
+
+service
+  .command('status')
+  .description('Show bridge service status')
+  .action(async () => {
+    await printServiceStatus();
+  });
+
+service
+  .command('logs')
+  .description('Show bridge service logs')
+  .option('-n, --lines <n>', 'Number of lines', '50')
+  .option('-f, --follow', 'Follow log output')
+  .action((options: { lines: string; follow?: boolean }) => {
+    tailLogs({ lines: Number(options.lines), follow: options.follow });
+  });
+
+// ── skill (agent skill management) ──────────────────────────────────
+
+const skill = program.command('skill').description('Manage xcode-mcp skill for agents');
+
+skill
+  .command('install')
+  .description('Install xcode-mcp skill to a skills directory')
+  .requiredOption('--skill-root-dir <path>', 'Target skills root directory (e.g. ~/.claude/skills)')
+  .action(async (options: { skillRootDir: string }) => {
+    await installSkill(options.skillRootDir);
+  });
+
+skill
+  .command('uninstall')
+  .description('Remove xcode-mcp skill from a skills directory')
+  .requiredOption('--skill-root-dir <path>', 'Target skills root directory (e.g. ~/.claude/skills)')
+  .action(async (options: { skillRootDir: string }) => {
+    await uninstallSkill(options.skillRootDir);
+  });
+
 applyCommandOrder(program, [
   'status',
   'build',
@@ -541,6 +598,8 @@ applyCommandOrder(program, [
   'snippet',
   'doc',
   'agent-setup',
+  'skill',
+  'service',
   'bridge',
   'tools',
   'run',
